@@ -1,0 +1,2045 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Portal – Center for Digital Narrative</title>
+    <style>
+      :root {
+        --bg-top: #9fc8d3;
+        --bg-bottom: #dce9f1;
+        --hud: #102a35;
+      }
+
+      * {
+        box-sizing: border-box;
+      }
+
+      html,
+      body {
+        margin: 0;
+        width: 100%;
+        height: 100%;
+        overflow: hidden;
+        font-family: "Trebuchet MS", "Segoe UI", sans-serif;
+      }
+
+      body {
+        background: linear-gradient(180deg, var(--bg-top), var(--bg-bottom));
+      }
+
+      #app {
+        width: 100%;
+        height: 100%;
+      }
+
+      #overlay {
+        position: fixed;
+        inset: 0;
+        display: grid;
+        place-items: center;
+        background: rgba(8, 20, 28, 0.42);
+        color: white;
+        user-select: none;
+        cursor: pointer;
+      }
+
+      #overlay .panel {
+        text-align: center;
+        padding: 1.1rem 1.4rem;
+        border: 1px solid rgba(255, 255, 255, 0.45);
+        border-radius: 10px;
+        background: rgba(0, 0, 0, 0.35);
+        backdrop-filter: blur(2px);
+      }
+
+      #overlay h1 {
+        margin: 0 0 0.4rem;
+        font-size: 1.1rem;
+      }
+
+      #overlay p {
+        margin: 0.2rem 0;
+        font-size: 0.9rem;
+      }
+
+      #crosshair {
+        position: fixed;
+        left: 50%;
+        top: 50%;
+        width: 14px;
+        height: 14px;
+        transform: translate(-50%, -50%);
+        pointer-events: none;
+      }
+
+      #crosshair::before,
+      #crosshair::after {
+        content: "";
+        position: absolute;
+        background: rgba(16, 42, 53, 0.8);
+      }
+
+      #crosshair::before {
+        width: 2px;
+        height: 14px;
+        left: 6px;
+      }
+
+      #crosshair::after {
+        width: 14px;
+        height: 2px;
+        top: 6px;
+      }
+
+      #crosshair.interact {
+        width: 18px;
+        height: 18px;
+        border: 2px solid rgba(120, 220, 255, 0.95);
+        border-radius: 50%;
+        box-shadow: 0 0 10px rgba(120, 220, 255, 0.45);
+      }
+
+      #crosshair.interact::before,
+      #crosshair.interact::after {
+        opacity: 0;
+      }
+
+      #mode-ui {
+        position: fixed;
+        right: 14px;
+        top: 14px;
+        z-index: 30;
+        padding: 0.55rem 0.7rem;
+        border-radius: 10px;
+        background: rgba(10, 25, 34, 0.62);
+        border: 1px solid rgba(255, 255, 255, 0.35);
+        color: #eef7ff;
+        font-size: 0.78rem;
+        user-select: none;
+      }
+
+      #mode-ui .row {
+        display: flex;
+        align-items: center;
+        gap: 0.45rem;
+      }
+
+      #mode-ui .tag {
+        opacity: 0.9;
+        min-width: 2.9rem;
+        text-align: center;
+      }
+
+      #mode-ui .switch {
+        position: relative;
+        width: 48px;
+        height: 24px;
+        display: inline-block;
+      }
+
+      #mode-ui .switch input {
+        opacity: 0;
+        width: 0;
+        height: 0;
+      }
+
+      #mode-ui .slider {
+        position: absolute;
+        inset: 0;
+        background: rgba(255, 255, 255, 0.2);
+        border-radius: 999px;
+        cursor: pointer;
+        transition: 0.22s ease;
+      }
+
+      #mode-ui .slider::before {
+        content: "";
+        position: absolute;
+        left: 3px;
+        top: 3px;
+        width: 18px;
+        height: 18px;
+        border-radius: 50%;
+        background: #f7fbff;
+        transition: transform 0.22s ease;
+      }
+
+      #mode-ui input:checked + .slider {
+        background: rgba(146, 208, 255, 0.72);
+      }
+
+      #mode-ui input:checked + .slider::before {
+        transform: translateX(24px);
+      }
+
+      #mode-ui .mode-name {
+        margin-top: 0.35rem;
+        text-align: center;
+        letter-spacing: 0.03em;
+        font-weight: 600;
+      }
+
+      #arcade-overlay {
+        position: fixed;
+        inset: 0;
+        z-index: 40;
+        display: none;
+        place-items: center;
+        pointer-events: none;
+      }
+
+      #arcade-overlay.active {
+        display: grid;
+        pointer-events: auto;
+      }
+
+      #arcade-panel {
+        position: relative;
+        width: min(74vw, 860px);
+        aspect-ratio: 4 / 3;
+        border: 3px solid rgba(120, 220, 255, 0.9);
+        border-radius: 10px;
+        overflow: hidden;
+        background: rgba(2, 6, 12, 0.94);
+        box-shadow: 0 20px 60px rgba(0, 0, 0, 0.52);
+      }
+
+      #arcade-frame {
+        position: absolute;
+        inset: 0;
+        width: 100%;
+        height: 100%;
+        border: 0;
+        display: block;
+      }
+
+      #arcade-exit {
+        position: fixed;
+        right: 16px;
+        bottom: 16px;
+        z-index: 41;
+        display: none;
+        padding: 0.5rem 0.7rem;
+        border: 1px solid rgba(255, 255, 255, 0.55);
+        border-radius: 8px;
+        color: #eef7ff;
+        background: rgba(10, 25, 34, 0.8);
+        font-size: 0.82rem;
+        cursor: pointer;
+      }
+
+      #arcade-exit.active {
+        display: inline-block;
+      }
+
+      #app-footer {
+        position: fixed;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        z-index: 45;
+        padding: 0.35rem 0.7rem;
+        text-align: center;
+        font-size: 0.74rem;
+        letter-spacing: 0.02em;
+        color: rgba(236, 245, 255, 0.92);
+        background: rgba(8, 18, 26, 0.55);
+        border-top: 1px solid rgba(255, 255, 255, 0.26);
+        pointer-events: none;
+        user-select: none;
+      }
+    </style>
+  </head>
+  <body>
+    <div id="app"></div>
+    <div id="overlay">
+      <div class="panel">
+        <h1>Enter the Center for Digital Narrative</h1>
+        <p>Click to lock mouse and use first person controls</p>
+        <p><strong>W A S D</strong> move, <strong>Mouse</strong> look around</p>
+      </div>
+    </div>
+    <div id="crosshair"></div>
+    <div id="mode-ui">
+      <div class="row">
+        <span class="tag">House</span>
+        <label class="switch">
+          <input id="mode-toggle" type="checkbox" />
+          <span class="slider"></span>
+        </label>
+        <span class="tag">Portal</span>
+      </div>
+      <div id="mode-name" class="mode-name">House Mode</div>
+    </div>
+    <div id="arcade-overlay">
+      <div id="arcade-panel">
+        <iframe
+          id="arcade-frame"
+          title="Arcade Screen"
+          loading="eager"
+          referrerpolicy="no-referrer"
+        ></iframe>
+      </div>
+    </div>
+    <button id="arcade-exit" type="button">Exit Arcade (Esc)</button>
+    <footer id="app-footer">
+      Code generated by Codex with the model GPT5.3 Codex.
+    </footer>
+
+    <script type="module">
+      import * as THREE from "three";
+      import { PointerLockControls } from "three/addons/controls/PointerLockControls.js";
+
+      const app = document.getElementById("app");
+      const overlay = document.getElementById("overlay");
+      const crosshair = document.getElementById("crosshair");
+      const modeToggle = document.getElementById("mode-toggle");
+      const modeName = document.getElementById("mode-name");
+      const arcadeOverlay = document.getElementById("arcade-overlay");
+      const arcadeFrame = document.getElementById("arcade-frame");
+      const arcadeExit = document.getElementById("arcade-exit");
+
+      const scene = new THREE.Scene();
+      scene.background = new THREE.Color(0x9fd6ff);
+      scene.fog = new THREE.Fog(0xbad1dd, 30, 130);
+
+      function createCloudSkyTexture(size = 1024) {
+        const canvas = document.createElement("canvas");
+        canvas.width = size;
+        canvas.height = size;
+        const ctx = canvas.getContext("2d");
+
+        const gradient = ctx.createLinearGradient(0, 0, 0, size);
+        gradient.addColorStop(0, "#73bfff");
+        gradient.addColorStop(0.5, "#9fd6ff");
+        gradient.addColorStop(1, "#d9f0ff");
+        ctx.fillStyle = gradient;
+        ctx.fillRect(0, 0, size, size);
+
+        for (let i = 0; i < 45; i++) {
+          const x = Math.random() * size;
+          const y = Math.random() * size * 0.8;
+          const r = size * (0.05 + Math.random() * 0.11);
+          const cloud = ctx.createRadialGradient(x, y, r * 0.2, x, y, r);
+          cloud.addColorStop(0, "rgba(255,255,255,0.82)");
+          cloud.addColorStop(0.7, "rgba(255,255,255,0.34)");
+          cloud.addColorStop(1, "rgba(255,255,255,0)");
+          ctx.fillStyle = cloud;
+          ctx.beginPath();
+          ctx.arc(x, y, r, 0, Math.PI * 2);
+          ctx.fill();
+        }
+
+        const texture = new THREE.CanvasTexture(canvas);
+        texture.colorSpace = THREE.SRGBColorSpace;
+        return texture;
+      }
+
+      function createStarSkyTexture(size = 1024) {
+        const canvas = document.createElement("canvas");
+        canvas.width = size;
+        canvas.height = size;
+        const ctx = canvas.getContext("2d");
+
+        const gradient = ctx.createLinearGradient(0, 0, 0, size);
+        gradient.addColorStop(0, "#030612");
+        gradient.addColorStop(0.55, "#07122b");
+        gradient.addColorStop(1, "#0b1f45");
+        ctx.fillStyle = gradient;
+        ctx.fillRect(0, 0, size, size);
+
+        for (let i = 0; i < 320; i++) {
+          const x = Math.random() * size;
+          const y = Math.random() * size;
+          const r = Math.random() * 1.5 + 0.25;
+          const a = 0.35 + Math.random() * 0.65;
+          ctx.fillStyle = `rgba(255,255,255,${a})`;
+          ctx.beginPath();
+          ctx.arc(x, y, r, 0, Math.PI * 2);
+          ctx.fill();
+        }
+
+        const texture = new THREE.CanvasTexture(canvas);
+        texture.colorSpace = THREE.SRGBColorSpace;
+        return texture;
+      }
+
+      const daySkyTexture = createCloudSkyTexture();
+      const nightSkyTexture = createStarSkyTexture();
+      const skyDome = new THREE.Mesh(
+        new THREE.SphereGeometry(170, 48, 32),
+        new THREE.MeshBasicMaterial({
+          map: daySkyTexture,
+          side: THREE.BackSide,
+          depthWrite: false,
+          fog: false,
+        }),
+      );
+      scene.add(skyDome);
+
+      const camera = new THREE.PerspectiveCamera(
+        70,
+        window.innerWidth / window.innerHeight,
+        0.1,
+        300,
+      );
+      camera.position.set(0, 1.8, 24);
+
+      const renderer = new THREE.WebGLRenderer({ antialias: true });
+      renderer.setSize(window.innerWidth, window.innerHeight);
+      renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+      renderer.outputColorSpace = THREE.SRGBColorSpace;
+      renderer.toneMappingExposure = 1.08;
+      app.appendChild(renderer.domElement);
+
+      const controls = new PointerLockControls(camera, document.body);
+
+      overlay.addEventListener("click", () => {
+        if (arcadeViewActive) return;
+        controls.lock();
+      });
+      controls.addEventListener("lock", () => (overlay.style.display = "none"));
+      controls.addEventListener("unlock", () => {
+        if (arcadeViewActive) {
+          overlay.style.display = "none";
+          return;
+        }
+        overlay.style.display = "grid";
+      });
+
+      scene.add(new THREE.HemisphereLight(0xdff3ff, 0xc5cdd3, 1.15));
+      const sun = new THREE.DirectionalLight(0xfff2cf, 1.45);
+      sun.position.set(14, 22, 9);
+      scene.add(sun);
+      const warmFill = new THREE.DirectionalLight(0xffd9a8, 0.42);
+      warmFill.position.set(-12, 10, -6);
+      scene.add(warmFill);
+
+      const ground = new THREE.Mesh(
+        new THREE.PlaneGeometry(260, 260),
+        new THREE.MeshStandardMaterial({
+          color: 0x6f8f63,
+          roughness: 0.95,
+          metalness: 0.02,
+        }),
+      );
+      ground.rotation.x = -Math.PI / 2;
+      scene.add(ground);
+
+      const sideHouseMat = new THREE.MeshStandardMaterial({
+        color: 0xf6f7f8,
+        roughness: 0.72,
+        metalness: 0.04,
+        side: THREE.DoubleSide,
+      });
+      const sideHouseRoofMat = new THREE.MeshStandardMaterial({
+        color: 0x171a1d,
+        roughness: 0.92,
+        metalness: 0.02,
+      });
+      const sideHouseTileMat = new THREE.MeshStandardMaterial({
+        color: 0x0e1012,
+        roughness: 0.86,
+        metalness: 0.04,
+      });
+      const sideHouseFloorMat = new THREE.MeshStandardMaterial({
+        color: 0xffffff,
+        roughness: 0.9,
+        metalness: 0.02,
+        side: THREE.DoubleSide,
+      });
+      const sideHouseCeilingMat = new THREE.MeshStandardMaterial({
+        color: 0xffffff,
+        roughness: 0.88,
+        metalness: 0.01,
+        side: THREE.DoubleSide,
+      });
+      const sideHouseWindowMat = new THREE.MeshPhysicalMaterial({
+        color: 0xbddfff,
+        roughness: 0.06,
+        metalness: 0.0,
+        transmission: 0.92,
+        transparent: true,
+        opacity: 0.42,
+        side: THREE.DoubleSide,
+      });
+
+      const sideHousesGroup = new THREE.Group();
+      scene.add(sideHousesGroup);
+      const sideHouseColliders = [];
+      const arcadeColliders = [];
+      const tempViewDir = new THREE.Vector3();
+      const tempToArcade = new THREE.Vector3();
+      const savedPlayerPosition = new THREE.Vector3();
+      const savedPlayerQuaternion = new THREE.Quaternion();
+      const arcadeCamPos = new THREE.Vector3();
+      const arcadeLookAt = new THREE.Vector3();
+      let arcadeViewActive = false;
+      let currentArcadeTarget = null;
+
+      function addSideHouse(x, z = 0, options = {}) {
+        const houseSize = options.size ?? 22;
+        const houseHeight = options.height ?? 9;
+        const roofStyle = options.roofStyle ?? "flat";
+        const cornerPyramids = options.cornerPyramids ?? false;
+        const addArcadeMachine = options.arcadeMachine ?? false;
+        const connectorDoorWidth = options.connectorDoorWidth ?? 4;
+        const connectorDoorHeight = options.connectorDoorHeight ?? 3.5;
+        const roofYOffset = options.roofYOffset ?? 0;
+        const roofThickness = 0.45;
+        const innerWallSign = x < 0 ? 1 : -1;
+
+        const house = new THREE.Group();
+
+        const wallThickness = 0.18;
+        const half = houseSize * 0.5;
+        const windowRowsY = [houseHeight * 0.28, houseHeight * 0.78];
+        const windowCols = [-0.32, 0, 0.32];
+        const windowWidth = houseSize * 0.16;
+        const windowHeight = houseHeight * 0.2;
+
+        const wallShape = new THREE.Shape();
+        wallShape.moveTo(-half, 0);
+        wallShape.lineTo(half, 0);
+        wallShape.lineTo(half, houseHeight);
+        wallShape.lineTo(-half, houseHeight);
+        wallShape.closePath();
+
+        windowRowsY.forEach((yRow) => {
+          windowCols.forEach((c) => {
+            const wx = c * houseSize;
+            const hole = new THREE.Path();
+            hole.moveTo(wx - windowWidth * 0.5, yRow - windowHeight * 0.5);
+            hole.lineTo(wx + windowWidth * 0.5, yRow - windowHeight * 0.5);
+            hole.lineTo(wx + windowWidth * 0.5, yRow + windowHeight * 0.5);
+            hole.lineTo(wx - windowWidth * 0.5, yRow + windowHeight * 0.5);
+            hole.closePath();
+            wallShape.holes.push(hole);
+          });
+        });
+
+        const wallGeom = new THREE.ExtrudeGeometry(wallShape, {
+          depth: wallThickness,
+          bevelEnabled: false,
+        });
+        wallGeom.translate(0, 0, -wallThickness * 0.5);
+
+        const frontWall = new THREE.Mesh(wallGeom, sideHouseMat);
+        frontWall.position.set(0, 0, half);
+        house.add(frontWall);
+
+        const backWall = frontWall.clone();
+        backWall.position.z = -half;
+        backWall.rotation.y = Math.PI;
+        house.add(backWall);
+
+        const windowPlane = new THREE.PlaneGeometry(windowWidth, windowHeight);
+        windowRowsY.forEach((yRow) => {
+          windowCols.forEach((c) => {
+            const wx = c * houseSize;
+            const frontWindow = new THREE.Mesh(windowPlane, sideHouseWindowMat);
+            frontWindow.position.set(wx, yRow, half + 0.02);
+            house.add(frontWindow);
+
+            const backWindow = frontWindow.clone();
+            backWindow.position.z = -half - 0.02;
+            backWindow.rotation.y = Math.PI;
+            house.add(backWindow);
+          });
+        });
+
+        const innerWallX = innerWallSign * half;
+        const outerWallX = -innerWallSign * half;
+
+        const outerWall = new THREE.Mesh(
+          new THREE.BoxGeometry(wallThickness, houseHeight, houseSize),
+          sideHouseMat,
+        );
+        outerWall.position.set(outerWallX, houseHeight * 0.5, 0);
+        house.add(outerWall);
+
+        const sideSegLen = (houseSize - connectorDoorWidth) * 0.5;
+        const innerFrontSeg = new THREE.Mesh(
+          new THREE.BoxGeometry(wallThickness, houseHeight, sideSegLen),
+          sideHouseMat,
+        );
+        innerFrontSeg.position.set(
+          innerWallX,
+          houseHeight * 0.5,
+          connectorDoorWidth * 0.5 + sideSegLen * 0.5,
+        );
+        house.add(innerFrontSeg);
+
+        const innerBackSeg = innerFrontSeg.clone();
+        innerBackSeg.position.z = -(
+          connectorDoorWidth * 0.5 +
+          sideSegLen * 0.5
+        );
+        house.add(innerBackSeg);
+
+        const topSegHeight = houseHeight - connectorDoorHeight;
+        const innerTopSeg = new THREE.Mesh(
+          new THREE.BoxGeometry(
+            wallThickness,
+            topSegHeight,
+            connectorDoorWidth,
+          ),
+          sideHouseMat,
+        );
+        innerTopSeg.position.set(
+          innerWallX,
+          connectorDoorHeight + topSegHeight * 0.5,
+          0,
+        );
+        house.add(innerTopSeg);
+
+        // Side-wall windows (outer side + inner side segments around connector door).
+        const sideWindowWidth = houseSize * 0.14;
+        const sideWindowPlane = new THREE.PlaneGeometry(
+          sideWindowWidth,
+          windowHeight,
+        );
+        const sideWindowOffset = 0.02;
+
+        windowRowsY.forEach((yRow) => {
+          // Outer wall (full side) - two windows spread along depth.
+          [-houseSize * 0.28, houseSize * 0.28].forEach((zPos) => {
+            const w = new THREE.Mesh(sideWindowPlane, sideHouseWindowMat);
+            w.position.set(
+              outerWallX - innerWallSign * sideWindowOffset,
+              yRow,
+              zPos,
+            );
+            w.rotation.y = innerWallSign > 0 ? Math.PI / 2 : -Math.PI / 2;
+            house.add(w);
+          });
+
+          // Inner wall (greenhouse-facing side), only on left/right segments of the doorway.
+          const innerZ = connectorDoorWidth * 0.5 + sideSegLen * 0.5;
+          [-innerZ, innerZ].forEach((zPos) => {
+            const w = new THREE.Mesh(sideWindowPlane, sideHouseWindowMat);
+            w.position.set(
+              innerWallX + innerWallSign * sideWindowOffset,
+              yRow,
+              zPos,
+            );
+            w.rotation.y = innerWallSign > 0 ? -Math.PI / 2 : Math.PI / 2;
+            house.add(w);
+          });
+        });
+
+        const houseFloor = new THREE.Mesh(
+          new THREE.PlaneGeometry(houseSize - 0.3, houseSize - 0.3),
+          sideHouseFloorMat,
+        );
+        houseFloor.rotation.x = -Math.PI / 2;
+        houseFloor.position.y = 0.04;
+        house.add(houseFloor);
+
+        const middleFloor = new THREE.Mesh(
+          new THREE.PlaneGeometry(houseSize - 0.34, houseSize - 0.34),
+          sideHouseFloorMat,
+        );
+        middleFloor.rotation.x = -Math.PI / 2;
+        middleFloor.position.y = houseHeight * 0.5 + 0.02;
+        house.add(middleFloor);
+
+        const insideCeiling = new THREE.Mesh(
+          new THREE.BoxGeometry(houseSize - 0.34, 0.06, houseSize - 0.34),
+          sideHouseCeilingMat,
+        );
+        insideCeiling.position.y = houseHeight - 0.06;
+        house.add(insideCeiling);
+
+        if (addArcadeMachine) {
+          const arcade = new THREE.Group();
+          const arcadeBodyMat = new THREE.MeshStandardMaterial({
+            color: 0x121420,
+            roughness: 0.46,
+            metalness: 0.2,
+          });
+          const arcadeSideMat = new THREE.MeshStandardMaterial({
+            color: 0x0095eb,
+            roughness: 0.34,
+            metalness: 0.08,
+          });
+          const arcadePinkMat = new THREE.MeshStandardMaterial({
+            color: 0xff4fb8,
+            roughness: 0.36,
+            metalness: 0.06,
+          });
+          const arcadeYellowMat = new THREE.MeshStandardMaterial({
+            color: 0xffdf3d,
+            roughness: 0.33,
+            metalness: 0.08,
+          });
+          const arcadeScreenMat = new THREE.MeshStandardMaterial({
+            color: 0x050505,
+            emissive: 0x14374f,
+            emissiveIntensity: 0.42,
+            roughness: 0.24,
+            metalness: 0.02,
+          });
+
+          const coreLower = new THREE.Mesh(
+            new THREE.BoxGeometry(0.82, 1.55, 0.94),
+            arcadeBodyMat,
+          );
+          coreLower.position.y = 0.78;
+          arcade.add(coreLower);
+
+          const coreNeck = new THREE.Mesh(
+            new THREE.BoxGeometry(0.82, 0.34, 0.44),
+            arcadeBodyMat,
+          );
+          coreNeck.position.set(0, 1.9, -0.24);
+          arcade.add(coreNeck);
+
+          const coreTop = new THREE.Mesh(
+            new THREE.BoxGeometry(0.82, 0.52, 0.52),
+            arcadeBodyMat,
+          );
+          coreTop.position.set(0, 2.24, -0.34);
+          arcade.add(coreTop);
+
+          [-1, 1].forEach((sx) => {
+            const sideLower = new THREE.Mesh(
+              new THREE.BoxGeometry(0.08, 1.6, 0.98),
+              arcadeSideMat,
+            );
+            sideLower.position.set(sx * 0.45, 0.8, 0.0);
+            arcade.add(sideLower);
+
+            const sideSlope = new THREE.Mesh(
+              new THREE.BoxGeometry(0.08, 0.95, 0.7),
+              arcadeSideMat,
+            );
+            sideSlope.position.set(sx * 0.45, 1.88, -0.14);
+            sideSlope.rotation.x = -0.34;
+            arcade.add(sideSlope);
+
+            const sideTop = new THREE.Mesh(
+              new THREE.BoxGeometry(0.08, 0.42, 0.58),
+              arcadeSideMat,
+            );
+            sideTop.position.set(sx * 0.45, 2.36, -0.31);
+            arcade.add(sideTop);
+          });
+
+          const marquee = new THREE.Mesh(
+            new THREE.BoxGeometry(0.84, 0.22, 0.64),
+            arcadeYellowMat,
+          );
+          marquee.position.set(0, 2.43, -0.24);
+          arcade.add(marquee);
+
+          const marqueeInset = new THREE.Mesh(
+            new THREE.BoxGeometry(0.78, 0.14, 0.61),
+            arcadePinkMat,
+          );
+          marqueeInset.position.set(0, 2.43, -0.23);
+          arcade.add(marqueeInset);
+
+          const screenBezel = new THREE.Mesh(
+            new THREE.BoxGeometry(0.66, 0.86, 0.05),
+            arcadePinkMat,
+          );
+          screenBezel.position.set(0, 1.92, 0.2);
+          screenBezel.rotation.x = -0.24;
+          arcade.add(screenBezel);
+
+          const screen = new THREE.Mesh(
+            new THREE.PlaneGeometry(0.58, 0.74),
+            arcadeScreenMat,
+          );
+          screen.position.set(0, 1.92, 0.23);
+          screen.rotation.x = -0.24;
+          arcade.add(screen);
+
+          const controlPanel = new THREE.Mesh(
+            new THREE.BoxGeometry(0.74, 0.1, 0.38),
+            arcadeSideMat,
+          );
+          controlPanel.position.set(0, 1.47, 0.34);
+          controlPanel.rotation.x = -0.16;
+          arcade.add(controlPanel);
+
+          const panelStripe = new THREE.Mesh(
+            new THREE.BoxGeometry(0.72, 0.02, 0.11),
+            arcadePinkMat,
+          );
+          panelStripe.position.set(0, 1.53, 0.39);
+          panelStripe.rotation.x = -0.16;
+          arcade.add(panelStripe);
+
+          const joystick = new THREE.Mesh(
+            new THREE.CylinderGeometry(0.018, 0.018, 0.11, 10),
+            new THREE.MeshStandardMaterial({
+              color: 0x191919,
+              roughness: 0.34,
+            }),
+          );
+          joystick.position.set(-0.16, 1.56, 0.35);
+          joystick.rotation.x = -0.16;
+          arcade.add(joystick);
+
+          const joystickBall = new THREE.Mesh(
+            new THREE.SphereGeometry(0.04, 14, 10),
+            new THREE.MeshStandardMaterial({
+              color: 0xff3f3f,
+              roughness: 0.25,
+            }),
+          );
+          joystickBall.position.set(-0.16, 1.63, 0.36);
+          arcade.add(joystickBall);
+
+          const buttonA = new THREE.Mesh(
+            new THREE.CylinderGeometry(0.03, 0.03, 0.03, 14),
+            arcadeYellowMat,
+          );
+          buttonA.rotation.x = Math.PI / 2 - 0.16;
+          buttonA.position.set(0.18, 1.53, 0.38);
+          arcade.add(buttonA);
+
+          const buttonB = buttonA.clone();
+          buttonB.position.x = 0.28;
+          buttonB.material = arcadePinkMat;
+          arcade.add(buttonB);
+
+          arcade.scale.setScalar(1.08);
+
+          arcade.rotation.y = Math.PI / 2;
+          arcade.position.set(-half + 1.28, 0, 0);
+          house.add(arcade);
+          const arcadeX = x + (-half + 1.28);
+          const arcadeZ = z;
+          arcadeColliders.push({
+            x: arcadeX,
+            y: 1.45,
+            z: arcadeZ,
+            halfX: 0.56,
+            halfZ: 0.56,
+            interactRadius: 2.0,
+            frontNormalX: 1,
+            frontNormalZ: 0,
+            cameraX: arcadeX + 0.62,
+            cameraY: 1.92,
+            cameraZ: arcadeZ,
+            lookAtX: arcadeX + 0.22,
+            lookAtY: 1.94,
+            lookAtZ: arcadeZ,
+          });
+        }
+
+        if (roofStyle === "gable") {
+          const overhang = 0.35;
+          const eaveY = houseHeight + 0.04;
+          const rise = houseSize * 0.2;
+          const run = houseSize * 0.5 + overhang;
+          const slopeLen = Math.hypot(run, rise);
+          const roofPitch = Math.atan2(rise, run);
+          const panelDepth = houseSize + overhang * 2;
+          const ridgeY = eaveY + rise;
+          const panelCenterY = eaveY + rise * 0.5;
+
+          const leftPanel = new THREE.Mesh(
+            new THREE.BoxGeometry(slopeLen, roofThickness, panelDepth),
+            sideHouseRoofMat,
+          );
+          leftPanel.position.set(-run * 0.5, panelCenterY, 0);
+          leftPanel.rotation.z = roofPitch;
+          house.add(leftPanel);
+
+          const rightPanel = leftPanel.clone();
+          rightPanel.position.x = run * 0.5;
+          rightPanel.rotation.z = -roofPitch;
+          house.add(rightPanel);
+
+          // Close front/back gable ends with white infill under the roof.
+          function addGableEnd(zPos) {
+            const gableGeom = new THREE.BufferGeometry();
+            const verts = new Float32Array([
+              -houseSize * 0.5,
+              houseHeight,
+              zPos,
+              houseSize * 0.5,
+              houseHeight,
+              zPos,
+              0,
+              ridgeY,
+              zPos,
+            ]);
+            gableGeom.setAttribute(
+              "position",
+              new THREE.BufferAttribute(verts, 3),
+            );
+            gableGeom.computeVertexNormals();
+            const gable = new THREE.Mesh(gableGeom, sideHouseMat);
+            house.add(gable);
+          }
+
+          addGableEnd(houseSize * 0.5 + 0.01);
+          addGableEnd(-(houseSize * 0.5 + 0.01));
+
+          const tileCount = 9;
+          for (let i = 0; i < tileCount; i++) {
+            const zLine =
+              -panelDepth * 0.4 + (i / (tileCount - 1)) * panelDepth * 0.8;
+            const ridgeTile = new THREE.Mesh(
+              new THREE.BoxGeometry(0.07, 0.07, houseSize * 0.18),
+              sideHouseTileMat,
+            );
+            ridgeTile.position.set(0, ridgeY + 0.06, zLine);
+            house.add(ridgeTile);
+          }
+        } else {
+          const roof = new THREE.Mesh(
+            new THREE.BoxGeometry(
+              houseSize + 0.6,
+              roofThickness,
+              houseSize + 0.6,
+            ),
+            sideHouseRoofMat,
+          );
+          roof.position.y = houseHeight + roofThickness * 0.5 + roofYOffset;
+          house.add(roof);
+
+          if (cornerPyramids) {
+            const peakHeight = 3.6;
+            const baseRadius = 6.15;
+            const cornerInset = 4.2;
+            const roofTopY = houseHeight + roofThickness + roofYOffset;
+            const corners = [
+              [-1, -1],
+              [1, -1],
+              [-1, 1],
+              [1, 1],
+            ];
+            corners.forEach(([sx, sz]) => {
+              const cap = new THREE.Mesh(
+                new THREE.ConeGeometry(baseRadius, peakHeight, 4),
+                sideHouseTileMat,
+              );
+              cap.rotation.y = Math.PI / 4;
+              cap.position.set(
+                sx * (houseSize * 0.5 - cornerInset),
+                roofTopY + peakHeight * 0.5,
+                sz * (houseSize * 0.5 - cornerInset),
+              );
+              house.add(cap);
+            });
+          }
+        }
+
+        house.position.set(x, 0, z);
+        sideHousesGroup.add(house);
+        sideHouseColliders.push({
+          x,
+          z,
+          size: houseSize,
+          doorSide: innerWallSign > 0 ? "right" : "left",
+          doorHalfWidth: connectorDoorWidth * 0.5,
+          doorHeight: connectorDoorHeight,
+        });
+      }
+
+      const greenhouse = new THREE.Group();
+      scene.add(greenhouse);
+
+      const SIDE = 14;
+      const W = SIDE;
+      const L = SIDE;
+      const H = 5;
+      const roofPeakY = 10.5;
+      const frameColor = "white";
+
+      const leftHouseOffset = W * 0.5 + 11 + 0.1;
+      const rightHouseOffset = W * 0.5 + 10.2;
+      addSideHouse(-leftHouseOffset, 0, {
+        size: 22,
+        height: 9,
+        roofStyle: "flat",
+        cornerPyramids: true,
+        roofYOffset: -0.08,
+        arcadeMachine: true,
+      });
+      addSideHouse(rightHouseOffset, 0, {
+        size: 20,
+        height: 8.3,
+        roofStyle: "gable",
+      });
+
+      let currentMode = "portal";
+      let portalWorldActive = false;
+      let guidePlantsGroup = null;
+
+      function setPortalWorld(active) {
+        if (portalWorldActive === active) return;
+        portalWorldActive = active;
+
+        ground.visible = !active;
+        sideHousesGroup.visible = !active;
+        if (guidePlantsGroup) guidePlantsGroup.visible = !active;
+        skyDome.material.map = active ? nightSkyTexture : daySkyTexture;
+        skyDome.material.needsUpdate = true;
+      }
+
+      function updateModeWorldState() {
+        if (currentMode !== "portal") {
+          setPortalWorld(false);
+          return;
+        }
+        const p = controls.object.position;
+        const insideGreenhouse =
+          p.x > -W * 0.5 + 0.25 &&
+          p.x < W * 0.5 - 0.25 &&
+          p.z > -L * 0.5 + 0.25 &&
+          p.z < L * 0.5 - 0.25;
+        setPortalWorld(insideGreenhouse);
+      }
+
+      function applyMode(mode) {
+        currentMode = mode;
+        modeName.textContent = mode === "house" ? "House Mode" : "Portal Mode";
+        updateModeWorldState();
+      }
+
+      modeToggle.addEventListener("change", () => {
+        applyMode(modeToggle.checked ? "portal" : "house");
+      });
+      modeToggle.checked = false;
+      applyMode("house");
+
+      const glassMat = new THREE.MeshPhysicalMaterial({
+        color: 0xb8f5ff,
+        metalness: 0.0,
+        roughness: 0.05,
+        transmission: 0.96,
+        transparent: true,
+        opacity: 0.28,
+        side: THREE.DoubleSide,
+      });
+
+      const frameMat = new THREE.MeshStandardMaterial({
+        color: frameColor,
+        roughness: 0.55,
+        metalness: 0.1,
+      });
+      const whiteFrameMat = new THREE.MeshStandardMaterial({
+        color: 0xf2f6f8,
+        roughness: 0.5,
+        metalness: 0.08,
+      });
+
+      function addFrameBar(width, height, depth, x, y, z) {
+        const bar = new THREE.Mesh(
+          new THREE.BoxGeometry(width, height, depth),
+          frameMat,
+        );
+        bar.position.set(x, y, z);
+        greenhouse.add(bar);
+      }
+
+      function addWhiteFrameBar(width, height, depth, x, y, z) {
+        const bar = new THREE.Mesh(
+          new THREE.BoxGeometry(width, height, depth),
+          whiteFrameMat,
+        );
+        bar.position.set(x, y, z);
+        greenhouse.add(bar);
+      }
+
+      function addWhiteRoofBar(from, to, thickness = 0.12) {
+        const len = from.distanceTo(to);
+        const rod = new THREE.Mesh(
+          new THREE.BoxGeometry(thickness, len, thickness),
+          whiteFrameMat,
+        );
+        rod.position.copy(
+          new THREE.Vector3().addVectors(from, to).multiplyScalar(0.5),
+        );
+        rod.lookAt(to);
+        rod.rotateX(Math.PI / 2);
+        greenhouse.add(rod);
+      }
+
+      const frameColliders = [];
+      function addFrameCollider(x, z, halfX = 0.1, halfZ = 0.1) {
+        frameColliders.push({ x, z, halfX, halfZ });
+      }
+
+      // Glass walls
+      const doorWidth = 4;
+      const doorHeight = 3.5;
+      const sideDoorWidth = 4;
+      const sideDoorHeight = 3.5;
+      const doorTopHeight = H - doorHeight;
+      const frontSideWidth = (W - doorWidth) * 0.5;
+      const wallOverlap = 0.18;
+      const wallPanelHeight = H + 0.12;
+      const wallPanelY = wallPanelHeight * 0.5 - 0.06;
+
+      const wallFrontLeft = new THREE.Mesh(
+        new THREE.PlaneGeometry(frontSideWidth + wallOverlap, wallPanelHeight),
+        glassMat,
+      );
+      wallFrontLeft.position.set(
+        -(doorWidth * 0.5 + (frontSideWidth + wallOverlap) * 0.5),
+        wallPanelY,
+        L * 0.5,
+      );
+      greenhouse.add(wallFrontLeft);
+
+      const wallFrontRight = wallFrontLeft.clone();
+      wallFrontRight.position.x =
+        doorWidth * 0.5 + (frontSideWidth + wallOverlap) * 0.5;
+      greenhouse.add(wallFrontRight);
+
+      const wallFrontTop = new THREE.Mesh(
+        new THREE.PlaneGeometry(
+          doorWidth + wallOverlap * 2,
+          doorTopHeight + 0.12,
+        ),
+        glassMat,
+      );
+      wallFrontTop.position.set(
+        0,
+        doorHeight + (doorTopHeight + 0.12) * 0.5 - 0.06,
+        L * 0.5,
+      );
+      greenhouse.add(wallFrontTop);
+
+      const wallBack = new THREE.Mesh(
+        new THREE.PlaneGeometry(W + wallOverlap * 2, wallPanelHeight),
+        glassMat,
+      );
+      wallBack.position.set(0, wallPanelY, -L * 0.5);
+      wallBack.rotation.y = Math.PI;
+      greenhouse.add(wallBack);
+
+      const sideWallSegment = (L - sideDoorWidth) * 0.5 + wallOverlap;
+      const sideWallTopHeight = H - sideDoorHeight + 0.12;
+
+      const wallLeftFront = new THREE.Mesh(
+        new THREE.PlaneGeometry(sideWallSegment, wallPanelHeight),
+        glassMat,
+      );
+      wallLeftFront.position.set(
+        -W * 0.5,
+        wallPanelY,
+        sideDoorWidth * 0.5 + sideWallSegment * 0.5 - wallOverlap * 0.5,
+      );
+      wallLeftFront.rotation.y = Math.PI / 2;
+      greenhouse.add(wallLeftFront);
+
+      const wallLeftBack = wallLeftFront.clone();
+      wallLeftBack.position.z = -(
+        sideDoorWidth * 0.5 +
+        sideWallSegment * 0.5 -
+        wallOverlap * 0.5
+      );
+      greenhouse.add(wallLeftBack);
+
+      const wallLeftTop = new THREE.Mesh(
+        new THREE.PlaneGeometry(
+          sideDoorWidth + wallOverlap * 2,
+          sideWallTopHeight,
+        ),
+        glassMat,
+      );
+      wallLeftTop.position.set(
+        -W * 0.5,
+        sideDoorHeight + sideWallTopHeight * 0.5 - 0.06,
+        0,
+      );
+      wallLeftTop.rotation.y = Math.PI / 2;
+      greenhouse.add(wallLeftTop);
+
+      const wallRightFront = wallLeftFront.clone();
+      wallRightFront.position.x = W * 0.5;
+      wallRightFront.rotation.y = -Math.PI / 2;
+      greenhouse.add(wallRightFront);
+
+      const wallRightBack = wallLeftBack.clone();
+      wallRightBack.position.x = W * 0.5;
+      wallRightBack.rotation.y = -Math.PI / 2;
+      greenhouse.add(wallRightBack);
+
+      const wallRightTop = wallLeftTop.clone();
+      wallRightTop.position.x = W * 0.5;
+      wallRightTop.rotation.y = -Math.PI / 2;
+      greenhouse.add(wallRightTop);
+
+      // Sliding glass door on front wall
+      addFrameBar(
+        0.16,
+        doorHeight,
+        0.16,
+        -doorWidth * 0.5,
+        doorHeight * 0.5,
+        L * 0.5 + 0.05,
+      );
+      addFrameBar(
+        0.16,
+        doorHeight,
+        0.16,
+        doorWidth * 0.5,
+        doorHeight * 0.5,
+        L * 0.5 + 0.05,
+      );
+      addFrameBar(doorWidth + 0.16, 0.16, 0.16, 0, doorHeight, L * 0.5 + 0.05);
+      addFrameBar(
+        0.16,
+        0.16,
+        sideDoorWidth + 0.16,
+        -W * 0.5 - 0.05,
+        sideDoorHeight,
+        0,
+      );
+      addFrameBar(
+        0.16,
+        0.16,
+        sideDoorWidth + 0.16,
+        W * 0.5 + 0.05,
+        sideDoorHeight,
+        0,
+      );
+
+      const frontDividerX = doorWidth * 0.5 + (W * 0.5 - doorWidth * 0.5) * 0.5;
+      addWhiteFrameBar(0.14, H, 0.12, -frontDividerX, H * 0.5, L * 0.5 + 0.03);
+      addWhiteFrameBar(0.14, H, 0.12, frontDividerX, H * 0.5, L * 0.5 + 0.03);
+      addWhiteFrameBar(0.14, H, 0.12, -frontDividerX, H * 0.5, -L * 0.5 - 0.03);
+      addWhiteFrameBar(0.14, H, 0.12, frontDividerX, H * 0.5, -L * 0.5 - 0.03);
+
+      // Additional white dividers aligned with the door frame sides.
+      const doorSideDividerX = doorWidth * 0.5;
+      const topExtensionHeight = H - doorHeight;
+      addWhiteFrameBar(
+        0.14,
+        topExtensionHeight,
+        0.12,
+        -doorSideDividerX,
+        doorHeight + topExtensionHeight * 0.5,
+        L * 0.5 + 0.03,
+      );
+      addWhiteFrameBar(
+        0.14,
+        topExtensionHeight,
+        0.12,
+        doorSideDividerX,
+        doorHeight + topExtensionHeight * 0.5,
+        L * 0.5 + 0.03,
+      );
+      addWhiteFrameBar(
+        0.14,
+        H,
+        0.12,
+        -doorSideDividerX,
+        H * 0.5,
+        -L * 0.5 - 0.03,
+      );
+      addWhiteFrameBar(
+        0.14,
+        H,
+        0.12,
+        doorSideDividerX,
+        H * 0.5,
+        -L * 0.5 - 0.03,
+      );
+
+      // Center divider starting from the middle of the door header.
+      addWhiteFrameBar(
+        0.14,
+        topExtensionHeight,
+        0.12,
+        0,
+        doorHeight + topExtensionHeight * 0.5,
+        L * 0.5 + 0.03,
+      );
+      addWhiteFrameBar(0.14, H, 0.12, 0, H * 0.5, -L * 0.5 - 0.03);
+
+      const doorPanelHeight = doorHeight - 0.12;
+      const doorPanelWidth = doorWidth * 0.5 - 0.08;
+      const doorMat = glassMat.clone();
+      doorMat.opacity = 0.36;
+      const doorZ = L * 0.5 + 0.02;
+      const doorLift = 0.08;
+
+      const leftDoor = new THREE.Mesh(
+        new THREE.PlaneGeometry(doorPanelWidth, doorPanelHeight),
+        doorMat,
+      );
+      const rightDoor = leftDoor.clone();
+
+      function addDoorFrame(panel) {
+        const t = 0.06;
+        const barDepth = 0.05;
+
+        const leftBar = new THREE.Mesh(
+          new THREE.BoxGeometry(t, doorPanelHeight + t, barDepth),
+          frameMat,
+        );
+        leftBar.position.set(-(doorPanelWidth * 0.5 + t * 0.5), 0.01, 0);
+        panel.add(leftBar);
+
+        const rightBar = leftBar.clone();
+        rightBar.position.x = doorPanelWidth * 0.5 + t * 0.5;
+        panel.add(rightBar);
+
+        const topBar = new THREE.Mesh(
+          new THREE.BoxGeometry(doorPanelWidth + t * 2, t, barDepth),
+          frameMat,
+        );
+        topBar.position.set(0, doorPanelHeight * 0.5 + t * 0.5, 0);
+        panel.add(topBar);
+
+        const bottomBar = topBar.clone();
+        bottomBar.position.y = -(doorPanelHeight * 0.5 + t * 0.5);
+        panel.add(bottomBar);
+      }
+
+      addDoorFrame(leftDoor);
+      addDoorFrame(rightDoor);
+
+      const leftDoorClosedX = -doorPanelWidth * 0.5;
+      const rightDoorClosedX = doorPanelWidth * 0.5;
+      // Slide far enough that each panel fully clears the doorway.
+      const doorMaxSlide = doorPanelWidth + 0.08;
+      let doorOpenAmount = 0;
+      const doorOpenSpeed = 4.5;
+      const doorTriggerDistance = 5.5;
+
+      leftDoor.position.set(
+        leftDoorClosedX,
+        doorPanelHeight * 0.5 + doorLift,
+        doorZ,
+      );
+      rightDoor.position.set(
+        rightDoorClosedX,
+        doorPanelHeight * 0.5 + doorLift,
+        doorZ,
+      );
+      greenhouse.add(leftDoor);
+      greenhouse.add(rightDoor);
+
+      // Main structural frame
+      const pillarHeight = H;
+      const c = [
+        [-W * 0.5, pillarHeight * 0.5, -L * 0.5],
+        [W * 0.5, pillarHeight * 0.5, -L * 0.5],
+        [-W * 0.5, pillarHeight * 0.5, L * 0.5],
+        [W * 0.5, pillarHeight * 0.5, L * 0.5],
+      ];
+      c.forEach(([x, y, z]) => addFrameBar(0.16, pillarHeight, 0.16, x, y, z));
+      c.forEach(([x, , z]) => addFrameCollider(x, z, 0.12, 0.12));
+      addFrameCollider(-doorWidth * 0.5, L * 0.5 + 0.05, 0.12, 0.12);
+      addFrameCollider(doorWidth * 0.5, L * 0.5 + 0.05, 0.12, 0.12);
+      addFrameCollider(-frontDividerX, L * 0.5 + 0.03, 0.1, 0.1);
+      addFrameCollider(frontDividerX, L * 0.5 + 0.03, 0.1, 0.1);
+      addFrameCollider(-frontDividerX, -L * 0.5 - 0.03, 0.1, 0.1);
+      addFrameCollider(frontDividerX, -L * 0.5 - 0.03, 0.1, 0.1);
+      addFrameCollider(-doorSideDividerX, -L * 0.5 - 0.03, 0.1, 0.1);
+      addFrameCollider(doorSideDividerX, -L * 0.5 - 0.03, 0.1, 0.1);
+      addFrameCollider(0, -L * 0.5 - 0.03, 0.1, 0.1);
+
+      // Top rectangle frame
+      addFrameBar(W, 0.16, 0.16, 0, H, -L * 0.5);
+      addFrameBar(W, 0.16, 0.16, 0, H, L * 0.5);
+      addFrameBar(0.16, 0.16, L, -W * 0.5, H, 0);
+      addFrameBar(0.16, 0.16, L, W * 0.5, H, 0);
+
+      // Pyramidal glass roof (4 triangles meeting at center top)
+      const roofVerts = [
+        new THREE.Vector3(-W * 0.5, H, -L * 0.5),
+        new THREE.Vector3(W * 0.5, H, -L * 0.5),
+        new THREE.Vector3(W * 0.5, H, L * 0.5),
+        new THREE.Vector3(-W * 0.5, H, L * 0.5),
+      ];
+      const peak = new THREE.Vector3(0, roofPeakY, 0);
+
+      function roofFace(a, b, peakPoint) {
+        const geom = new THREE.BufferGeometry();
+        const vertices = new Float32Array([
+          a.x,
+          a.y,
+          a.z,
+          b.x,
+          b.y,
+          b.z,
+          peakPoint.x,
+          peakPoint.y,
+          peakPoint.z,
+        ]);
+        geom.setAttribute("position", new THREE.BufferAttribute(vertices, 3));
+        geom.computeVertexNormals();
+        const mesh = new THREE.Mesh(geom, glassMat);
+        greenhouse.add(mesh);
+      }
+
+      for (let i = 0; i < 4; i++)
+        roofFace(roofVerts[i], roofVerts[(i + 1) % 4], peak);
+
+      // Roof frame bars
+      roofVerts.forEach((v) => {
+        const dir = new THREE.Vector3().subVectors(peak, v);
+        const len = dir.length();
+        const rod = new THREE.Mesh(
+          new THREE.BoxGeometry(0.12, len, 0.12),
+          frameMat,
+        );
+        const mid = new THREE.Vector3().addVectors(v, peak).multiplyScalar(0.5);
+        rod.position.copy(mid);
+        rod.lookAt(peak);
+        rod.rotateX(Math.PI / 2);
+        greenhouse.add(rod);
+      });
+
+      const dividerFrontLeftTop = new THREE.Vector3(-frontDividerX, H, L * 0.5);
+      const dividerFrontRightTop = new THREE.Vector3(frontDividerX, H, L * 0.5);
+      const dividerBackLeftTop = new THREE.Vector3(-frontDividerX, H, -L * 0.5);
+      const dividerBackRightTop = new THREE.Vector3(frontDividerX, H, -L * 0.5);
+
+      // Continue each divider up the roof but stop at the sloped edge frame bars.
+      const edgeMeetT = (W * 0.5 - frontDividerX) / (W * 0.5);
+      const frontLeftEdgeMeet = new THREE.Vector3(-W * 0.5, H, L * 0.5).lerp(
+        peak,
+        edgeMeetT,
+      );
+      const frontRightEdgeMeet = new THREE.Vector3(W * 0.5, H, L * 0.5).lerp(
+        peak,
+        edgeMeetT,
+      );
+      const backLeftEdgeMeet = new THREE.Vector3(-W * 0.5, H, -L * 0.5).lerp(
+        peak,
+        edgeMeetT,
+      );
+      const backRightEdgeMeet = new THREE.Vector3(W * 0.5, H, -L * 0.5).lerp(
+        peak,
+        edgeMeetT,
+      );
+
+      addWhiteRoofBar(dividerFrontLeftTop, frontLeftEdgeMeet);
+      addWhiteRoofBar(dividerFrontRightTop, frontRightEdgeMeet);
+      addWhiteRoofBar(dividerBackLeftTop, backLeftEdgeMeet);
+      addWhiteRoofBar(dividerBackRightTop, backRightEdgeMeet);
+
+      const doorDividerFrontLeftTop = new THREE.Vector3(
+        -doorSideDividerX,
+        H,
+        L * 0.5,
+      );
+      const doorDividerFrontRightTop = new THREE.Vector3(
+        doorSideDividerX,
+        H,
+        L * 0.5,
+      );
+      const doorDividerBackLeftTop = new THREE.Vector3(
+        -doorSideDividerX,
+        H,
+        -L * 0.5,
+      );
+      const doorDividerBackRightTop = new THREE.Vector3(
+        doorSideDividerX,
+        H,
+        -L * 0.5,
+      );
+
+      const doorEdgeMeetT = (W * 0.5 - doorSideDividerX) / (W * 0.5);
+      const doorFrontLeftEdgeMeet = new THREE.Vector3(
+        -W * 0.5,
+        H,
+        L * 0.5,
+      ).lerp(peak, doorEdgeMeetT);
+      const doorFrontRightEdgeMeet = new THREE.Vector3(
+        W * 0.5,
+        H,
+        L * 0.5,
+      ).lerp(peak, doorEdgeMeetT);
+      const doorBackLeftEdgeMeet = new THREE.Vector3(
+        -W * 0.5,
+        H,
+        -L * 0.5,
+      ).lerp(peak, doorEdgeMeetT);
+      const doorBackRightEdgeMeet = new THREE.Vector3(
+        W * 0.5,
+        H,
+        -L * 0.5,
+      ).lerp(peak, doorEdgeMeetT);
+
+      addWhiteRoofBar(doorDividerFrontLeftTop, doorFrontLeftEdgeMeet);
+      addWhiteRoofBar(doorDividerFrontRightTop, doorFrontRightEdgeMeet);
+      addWhiteRoofBar(doorDividerBackLeftTop, doorBackLeftEdgeMeet);
+      addWhiteRoofBar(doorDividerBackRightTop, doorBackRightEdgeMeet);
+
+      const centerDividerFrontTop = new THREE.Vector3(0, H, L * 0.5);
+      const centerDividerBackTop = new THREE.Vector3(0, H, -L * 0.5);
+      addWhiteRoofBar(centerDividerFrontTop, peak);
+      addWhiteRoofBar(centerDividerBackTop, peak);
+
+      // Horizontal rooftop dividers at each non-peak intersection level.
+      const roofLevels = [edgeMeetT, doorEdgeMeetT]
+        .filter((t) => t > 0.001 && t < 0.999)
+        .sort((a, b) => a - b);
+      roofLevels.forEach((t) => {
+        const frontLeft = new THREE.Vector3(-W * 0.5, H, L * 0.5).lerp(peak, t);
+        const frontRight = new THREE.Vector3(W * 0.5, H, L * 0.5).lerp(peak, t);
+        const backLeft = new THREE.Vector3(-W * 0.5, H, -L * 0.5).lerp(peak, t);
+        const backRight = new THREE.Vector3(W * 0.5, H, -L * 0.5).lerp(peak, t);
+
+        addWhiteRoofBar(frontLeft, frontRight);
+        addWhiteRoofBar(backLeft, backRight);
+        addWhiteRoofBar(frontLeft, backLeft);
+        addWhiteRoofBar(frontRight, backRight);
+      });
+
+      // Mirror divider segmentation onto the left and right side walls.
+      const sideDividerZs = [
+        -frontDividerX,
+        -doorSideDividerX,
+        doorSideDividerX,
+        frontDividerX,
+      ];
+      sideDividerZs.forEach((z) => {
+        addWhiteFrameBar(0.12, H, 0.14, -W * 0.5 - 0.03, H * 0.5, z);
+        addWhiteFrameBar(0.12, H, 0.14, W * 0.5 + 0.03, H * 0.5, z);
+        addFrameCollider(-W * 0.5 - 0.03, z, 0.1, 0.1);
+        addFrameCollider(W * 0.5 + 0.03, z, 0.1, 0.1);
+
+        const leftTop = new THREE.Vector3(-W * 0.5, H, z);
+        const rightTop = new THREE.Vector3(W * 0.5, H, z);
+
+        if (Math.abs(z) < 0.001) {
+          addWhiteRoofBar(leftTop, peak);
+          addWhiteRoofBar(rightTop, peak);
+          return;
+        }
+
+        const t = (L * 0.5 - Math.abs(z)) / (L * 0.5);
+        const leftEdgeStart = new THREE.Vector3(
+          -W * 0.5,
+          H,
+          z > 0 ? L * 0.5 : -L * 0.5,
+        );
+        const rightEdgeStart = new THREE.Vector3(
+          W * 0.5,
+          H,
+          z > 0 ? L * 0.5 : -L * 0.5,
+        );
+        const leftEdgeMeet = leftEdgeStart.clone().lerp(peak, t);
+        const rightEdgeMeet = rightEdgeStart.clone().lerp(peak, t);
+        addWhiteRoofBar(leftTop, leftEdgeMeet);
+        addWhiteRoofBar(rightTop, rightEdgeMeet);
+      });
+
+      // Restore center side dividers only above the side doors.
+      const sideDoorTopExtension = H - sideDoorHeight;
+      addWhiteFrameBar(
+        0.12,
+        sideDoorTopExtension,
+        0.14,
+        -W * 0.5 - 0.03,
+        sideDoorHeight + sideDoorTopExtension * 0.5,
+        0,
+      );
+      addWhiteFrameBar(
+        0.12,
+        sideDoorTopExtension,
+        0.14,
+        W * 0.5 + 0.03,
+        sideDoorHeight + sideDoorTopExtension * 0.5,
+        0,
+      );
+      addWhiteRoofBar(new THREE.Vector3(-W * 0.5, H, 0), peak);
+      addWhiteRoofBar(new THREE.Vector3(W * 0.5, H, 0), peak);
+
+      // Simple floor inside greenhouse
+      const insideFloor = new THREE.Mesh(
+        new THREE.PlaneGeometry(W + 0.16, L + 0.16),
+        new THREE.MeshStandardMaterial({
+          color: 0x7e8e74,
+          roughness: 0.95,
+          metalness: 0.0,
+          side: THREE.DoubleSide,
+        }),
+      );
+      insideFloor.rotation.x = -Math.PI / 2;
+      insideFloor.position.y = 0.01;
+      greenhouse.add(insideFloor);
+
+      // Decorative guide plants in two rows toward the front entrance.
+      const plantMat = new THREE.MeshStandardMaterial({
+        color: 0x2f7a3c,
+        roughness: 0.8,
+      });
+      const potMat = new THREE.MeshStandardMaterial({
+        color: 0x9a6d45,
+        roughness: 0.85,
+      });
+      guidePlantsGroup = new THREE.Group();
+      greenhouse.add(guidePlantsGroup);
+      const guideStartZ = L * 0.5 + 1.8;
+      const guideStep = 2.3;
+      const guideCount = 7;
+      for (let i = 0; i < guideCount; i++) {
+        const z = guideStartZ + (guideCount - 1 - i) * guideStep;
+        const t = i / (guideCount - 1);
+        const rowX = THREE.MathUtils.lerp(5.2, frontDividerX, t);
+        [-rowX, rowX].forEach((x) => {
+          const pot = new THREE.Mesh(
+            new THREE.CylinderGeometry(0.35, 0.45, 0.6, 10),
+            potMat,
+          );
+          pot.position.set(x, 0.3, z);
+          guidePlantsGroup.add(pot);
+          addFrameCollider(x, z, 0.36, 0.36);
+
+          const plant = new THREE.Mesh(
+            new THREE.ConeGeometry(0.5, 1.2, 10),
+            plantMat,
+          );
+          plant.position.set(x, 1.2, z);
+          guidePlantsGroup.add(plant);
+        });
+      }
+
+      const keys = {
+        w: false,
+        a: false,
+        s: false,
+        d: false,
+        space: false,
+        shift: false,
+      };
+      const velocity = new THREE.Vector3();
+      const direction = new THREE.Vector3();
+      const moveSpeed = 2.2;
+      const flySpeed = 4.2;
+      const damping = 10;
+      const gravity = 18;
+      const jumpVelocity = 6.4;
+      const playerHeight = 2.05;
+      const playerRadius = 0.22;
+      let verticalVelocity = 0;
+      let onGround = true;
+      let flyMode = false;
+      let prev = performance.now();
+
+      window.addEventListener("keydown", (e) => {
+        if (arcadeViewActive && e.code === "Escape") {
+          e.preventDefault();
+          exitArcadeView(true);
+          return;
+        }
+
+        const k = e.key.toLowerCase();
+        if (k in keys) keys[k] = true;
+        if (e.code === "ShiftLeft" || e.code === "ShiftRight") {
+          keys.shift = true;
+        }
+        if (e.code === "Space") {
+          keys.space = true;
+          e.preventDefault();
+        }
+        if (e.code === "KeyF" && !e.repeat) {
+          flyMode = !flyMode;
+          verticalVelocity = 0;
+          if (flyMode) onGround = false;
+        }
+      });
+      window.addEventListener("keyup", (e) => {
+        const k = e.key.toLowerCase();
+        if (k in keys) keys[k] = false;
+        if (e.code === "Space") keys.space = false;
+        if (e.code === "ShiftLeft" || e.code === "ShiftRight")
+          keys.shift = false;
+      });
+
+      function ensureArcadeFrameContent() {
+        if (arcadeFrame.srcdoc) return;
+        arcadeFrame.srcdoc = `
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <style>
+      html, body {
+        margin: 0;
+        width: 100%;
+        height: 100%;
+        background: radial-gradient(circle at 50% 35%, #213f72, #0b1122 70%);
+        color: #f3f8ff;
+        font-family: "Trebuchet MS", "Segoe UI", sans-serif;
+        overflow: hidden;
+      }
+      .hud {
+        position: absolute;
+        inset: 0;
+        display: grid;
+        place-items: center;
+      }
+      .panel {
+        text-align: center;
+        border: 2px solid rgba(120, 220, 255, 0.8);
+        border-radius: 10px;
+        padding: 1.1rem 1.2rem;
+        background: rgba(5, 10, 22, 0.58);
+      }
+      h2 {
+        margin: 0;
+        font-size: 1.1rem;
+        letter-spacing: 0.04em;
+      }
+      p {
+        margin: 0.45rem 0 0;
+        font-size: 0.88rem;
+        opacity: 0.9;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="hud">
+      <div class="panel">
+        <h2>Arcade Connected</h2>
+        <iframe
+  id="inlineFrameExample"
+  title="Inline Frame Example"
+  width="500px"
+  height="500px"
+  src="https://freepacman.org">
+</iframe>
+      </div>
+    </div>
+  </body>
+</html>`;
+      }
+
+      function enterArcadeView(target) {
+        if (!target || arcadeViewActive) return;
+
+        arcadeViewActive = true;
+        savedPlayerPosition.copy(controls.object.position);
+        savedPlayerQuaternion.copy(controls.object.quaternion);
+        controls.unlock();
+
+        arcadeCamPos.set(target.cameraX, target.cameraY, target.cameraZ);
+        arcadeLookAt.set(target.lookAtX, target.lookAtY, target.lookAtZ);
+        controls.object.position.copy(arcadeCamPos);
+        camera.lookAt(arcadeLookAt);
+
+        ensureArcadeFrameContent();
+        arcadeOverlay.classList.add("active");
+        arcadeExit.classList.add("active");
+        crosshair.style.display = "none";
+      }
+
+      function exitArcadeView(relock) {
+        if (!arcadeViewActive) return;
+
+        arcadeViewActive = false;
+        arcadeOverlay.classList.remove("active");
+        arcadeExit.classList.remove("active");
+        crosshair.style.display = "";
+        controls.object.position.copy(savedPlayerPosition);
+        controls.object.quaternion.copy(savedPlayerQuaternion);
+
+        if (relock) {
+          controls.lock();
+        } else {
+          overlay.style.display = "grid";
+        }
+      }
+
+      arcadeExit.addEventListener("click", () => exitArcadeView(true));
+
+      window.addEventListener("mousedown", (e) => {
+        if (e.button !== 0) return;
+        if (!controls.isLocked || arcadeViewActive) return;
+        if (!currentArcadeTarget) return;
+        enterArcadeView(currentArcadeTarget);
+      });
+
+      // Keep the player in-world while allowing entry through the door area.
+      function constrainPlayer() {
+        const p = controls.object.position;
+        const wallBuffer = 0.28;
+        const outsideLimit = 120;
+        const halfW = W * 0.5;
+        const halfL = L * 0.5;
+
+        p.x = THREE.MathUtils.clamp(p.x, -outsideLimit, outsideLimit);
+        p.z = THREE.MathUtils.clamp(p.z, -outsideLimit, outsideLimit);
+        const minY = playerHeight;
+        if (p.y <= minY) {
+          p.y = minY;
+          verticalVelocity = 0;
+          onGround = true;
+        }
+
+        const clearHalfWidth = 0.2 + (doorWidth * 0.5 - 0.25) * doorOpenAmount;
+        const inDoorX = Math.abs(p.x) < clearHalfWidth;
+        const belowDoorTop = p.y < doorHeight + 0.2;
+        const inSideDoorZ = Math.abs(p.z) < sideDoorWidth * 0.5 - 0.18;
+        const belowSideDoorTop = p.y < sideDoorHeight + 0.2;
+
+        const withinFrontSpan =
+          p.x > -halfW + wallBuffer && p.x < halfW - wallBuffer;
+        const nearFrontWall = Math.abs(p.z - halfL) < wallBuffer;
+        if (nearFrontWall && withinFrontSpan && !(inDoorX && belowDoorTop)) {
+          p.z = p.z > halfL ? halfL + wallBuffer : halfL - wallBuffer;
+          velocity.z = 0;
+        }
+
+        const withinBackSpan =
+          p.x > -halfW + wallBuffer && p.x < halfW - wallBuffer;
+        const nearBackWall = Math.abs(p.z + halfL) < wallBuffer;
+        if (nearBackWall && withinBackSpan) {
+          p.z = p.z < -halfL ? -halfL - wallBuffer : -halfL + wallBuffer;
+          velocity.z = 0;
+        }
+
+        const withinLeftSpan =
+          p.z > -halfL + wallBuffer && p.z < halfL - wallBuffer;
+        const nearLeftWall = Math.abs(p.x + halfW) < wallBuffer;
+        if (
+          nearLeftWall &&
+          withinLeftSpan &&
+          !(inSideDoorZ && belowSideDoorTop)
+        ) {
+          p.x = p.x < -halfW ? -halfW - wallBuffer : -halfW + wallBuffer;
+          velocity.x = 0;
+        }
+
+        const withinRightSpan =
+          p.z > -halfL + wallBuffer && p.z < halfL - wallBuffer;
+        const nearRightWall = Math.abs(p.x - halfW) < wallBuffer;
+        if (
+          nearRightWall &&
+          withinRightSpan &&
+          !(inSideDoorZ && belowSideDoorTop)
+        ) {
+          p.x = p.x > halfW ? halfW + wallBuffer : halfW - wallBuffer;
+          velocity.x = 0;
+        }
+
+        if (sideHousesGroup.visible) {
+          for (const house of sideHouseColliders) {
+            const h = house.size * 0.5;
+            const minX = house.x - h;
+            const maxX = house.x + h;
+            const minZ = house.z - h;
+            const maxZ = house.z + h;
+            const doorZPass =
+              Math.abs(p.z - house.z) < house.doorHalfWidth - 0.12;
+            const belowHouseDoorTop = p.y < house.doorHeight + 0.2;
+
+            const nearFrontHouseWall = Math.abs(p.z - maxZ) < wallBuffer;
+            const nearBackHouseWall = Math.abs(p.z - minZ) < wallBuffer;
+            const nearLeftHouseWall = Math.abs(p.x - minX) < wallBuffer;
+            const nearRightHouseWall = Math.abs(p.x - maxX) < wallBuffer;
+            const withinHouseX =
+              p.x > minX + wallBuffer && p.x < maxX - wallBuffer;
+            const withinHouseZ =
+              p.z > minZ + wallBuffer && p.z < maxZ - wallBuffer;
+
+            if (nearFrontHouseWall && withinHouseX) {
+              p.z = p.z > maxZ ? maxZ + wallBuffer : maxZ - wallBuffer;
+              velocity.z = 0;
+            }
+            if (nearBackHouseWall && withinHouseX) {
+              p.z = p.z < minZ ? minZ - wallBuffer : minZ + wallBuffer;
+              velocity.z = 0;
+            }
+
+            const leftDoorWall =
+              house.doorSide === "left" && doorZPass && belowHouseDoorTop;
+            const rightDoorWall =
+              house.doorSide === "right" && doorZPass && belowHouseDoorTop;
+
+            if (nearLeftHouseWall && withinHouseZ && !leftDoorWall) {
+              p.x = p.x < minX ? minX - wallBuffer : minX + wallBuffer;
+              velocity.x = 0;
+            }
+            if (nearRightHouseWall && withinHouseZ && !rightDoorWall) {
+              p.x = p.x > maxX ? maxX + wallBuffer : maxX - wallBuffer;
+              velocity.x = 0;
+            }
+          }
+
+          for (const arcadeCol of arcadeColliders) {
+            const minX = arcadeCol.x - arcadeCol.halfX - playerRadius;
+            const maxX = arcadeCol.x + arcadeCol.halfX + playerRadius;
+            const minZ = arcadeCol.z - arcadeCol.halfZ - playerRadius;
+            const maxZ = arcadeCol.z + arcadeCol.halfZ + playerRadius;
+            if (p.x <= minX || p.x >= maxX || p.z <= minZ || p.z >= maxZ)
+              continue;
+
+            const pushLeft = p.x - minX;
+            const pushRight = maxX - p.x;
+            const pushBack = p.z - minZ;
+            const pushFront = maxZ - p.z;
+            const minPush = Math.min(pushLeft, pushRight, pushBack, pushFront);
+
+            if (minPush === pushLeft) {
+              p.x = minX;
+              velocity.x = 0;
+            } else if (minPush === pushRight) {
+              p.x = maxX;
+              velocity.x = 0;
+            } else if (minPush === pushBack) {
+              p.z = minZ;
+              velocity.z = 0;
+            } else {
+              p.z = maxZ;
+              velocity.z = 0;
+            }
+          }
+        }
+
+        for (const col of frameColliders) {
+          const minX = col.x - col.halfX - playerRadius;
+          const maxX = col.x + col.halfX + playerRadius;
+          const minZ = col.z - col.halfZ - playerRadius;
+          const maxZ = col.z + col.halfZ + playerRadius;
+          if (p.x <= minX || p.x >= maxX || p.z <= minZ || p.z >= maxZ)
+            continue;
+
+          const pushLeft = p.x - minX;
+          const pushRight = maxX - p.x;
+          const pushBack = p.z - minZ;
+          const pushFront = maxZ - p.z;
+          const minPush = Math.min(pushLeft, pushRight, pushBack, pushFront);
+
+          if (minPush === pushLeft) {
+            p.x = minX;
+            velocity.x = 0;
+          } else if (minPush === pushRight) {
+            p.x = maxX;
+            velocity.x = 0;
+          } else if (minPush === pushBack) {
+            p.z = minZ;
+            velocity.z = 0;
+          } else {
+            p.z = maxZ;
+            velocity.z = 0;
+          }
+        }
+      }
+
+      function updateArcadeInteractCrosshair() {
+        if (
+          arcadeViewActive ||
+          !controls.isLocked ||
+          !sideHousesGroup.visible
+        ) {
+          currentArcadeTarget = null;
+          crosshair.classList.remove("interact");
+          return;
+        }
+
+        camera.getWorldDirection(tempViewDir);
+        const px = controls.object.position.x;
+        const py = controls.object.position.y;
+        const pz = controls.object.position.z;
+
+        let canInteract = false;
+        let bestTarget = null;
+        let bestDist = Infinity;
+        for (const arcadeCol of arcadeColliders) {
+          tempToArcade.set(
+            arcadeCol.x - px,
+            arcadeCol.y - py,
+            arcadeCol.z - pz,
+          );
+          const dist = tempToArcade.length();
+          if (dist > arcadeCol.interactRadius) continue;
+
+          if (dist < 0.0001) continue;
+          const viewDot = tempViewDir.dot(
+            tempToArcade.multiplyScalar(1 / dist),
+          );
+          if (viewDot < 0.72) continue;
+
+          const frontDot =
+            (px - arcadeCol.x) * arcadeCol.frontNormalX +
+            (pz - arcadeCol.z) * arcadeCol.frontNormalZ;
+          if (frontDot < -0.08) continue;
+
+          canInteract = true;
+          if (dist < bestDist) {
+            bestDist = dist;
+            bestTarget = arcadeCol;
+          }
+        }
+
+        currentArcadeTarget = bestTarget;
+        crosshair.classList.toggle("interact", canInteract);
+      }
+
+      function animate() {
+        requestAnimationFrame(animate);
+        const now = performance.now();
+        const dt = Math.min((now - prev) / 1000, 0.05);
+        prev = now;
+        skyDome.position.copy(camera.position);
+
+        if (controls.isLocked) {
+          direction.set(0, 0, 0);
+          if (keys.w) direction.z -= 1;
+          if (keys.s) direction.z += 1;
+          if (keys.a) direction.x -= 1;
+          if (keys.d) direction.x += 1;
+          direction.normalize();
+
+          velocity.x -= velocity.x * damping * dt;
+          velocity.z -= velocity.z * damping * dt;
+
+          if (direction.z !== 0) velocity.z += direction.z * moveSpeed * dt;
+          if (direction.x !== 0) velocity.x += direction.x * moveSpeed * dt;
+
+          if (!flyMode && keys.space && onGround) {
+            verticalVelocity = jumpVelocity;
+            onGround = false;
+          }
+
+          if (flyMode) {
+            if (keys.space) controls.object.position.y += flySpeed * dt;
+            if (keys.shift) controls.object.position.y -= flySpeed * dt;
+          } else {
+            verticalVelocity -= gravity * dt;
+            controls.object.position.y += verticalVelocity * dt;
+          }
+
+          const playerPos = controls.object.position;
+          const distanceToDoor = Math.hypot(playerPos.x, playerPos.z - L * 0.5);
+          const targetDoorOpen = distanceToDoor < doorTriggerDistance ? 1 : 0;
+          doorOpenAmount = THREE.MathUtils.lerp(
+            doorOpenAmount,
+            targetDoorOpen,
+            Math.min(1, doorOpenSpeed * dt),
+          );
+          leftDoor.position.x = leftDoorClosedX - doorMaxSlide * doorOpenAmount;
+          rightDoor.position.x =
+            rightDoorClosedX + doorMaxSlide * doorOpenAmount;
+
+          controls.moveRight(velocity.x);
+          controls.moveForward(-velocity.z);
+          if (!flyMode) constrainPlayer();
+        }
+
+        updateArcadeInteractCrosshair();
+        updateModeWorldState();
+        renderer.render(scene, camera);
+      }
+
+      window.addEventListener("resize", () => {
+        camera.aspect = window.innerWidth / window.innerHeight;
+        camera.updateProjectionMatrix();
+        renderer.setSize(window.innerWidth, window.innerHeight);
+      });
+
+      animate();
+    </script>
+  </body>
+</html>

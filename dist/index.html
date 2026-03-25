@@ -1,0 +1,292 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Portal – Center for Digital Narrative</title>
+    <style>
+      :root {
+        --bg-top: #9fc8d3;
+        --bg-bottom: #dce9f1;
+        --hud: #102a35;
+      }
+
+      * {
+        box-sizing: border-box;
+      }
+
+      html,
+      body {
+        margin: 0;
+        width: 100%;
+        height: 100%;
+        overflow: hidden;
+        font-family: "Trebuchet MS", "Segoe UI", sans-serif;
+      }
+
+      body {
+        background: linear-gradient(180deg, var(--bg-top), var(--bg-bottom));
+      }
+
+      #app {
+        width: 100%;
+        height: 100%;
+      }
+
+      #overlay {
+        position: fixed;
+        inset: 0;
+        display: grid;
+        place-items: center;
+        background: rgba(8, 20, 28, 0.42);
+        color: white;
+        user-select: none;
+        cursor: pointer;
+      }
+
+      #overlay .panel {
+        text-align: center;
+        padding: 1.1rem 1.4rem;
+        border: 1px solid rgba(255, 255, 255, 0.45);
+        border-radius: 10px;
+        background: rgba(0, 0, 0, 0.35);
+        backdrop-filter: blur(2px);
+      }
+
+      #overlay h1 {
+        margin: 0 0 0.4rem;
+        font-size: 1.1rem;
+      }
+
+      #overlay p {
+        margin: 0.2rem 0;
+        font-size: 0.9rem;
+      }
+
+      #crosshair {
+        position: fixed;
+        left: 50%;
+        top: 50%;
+        width: 14px;
+        height: 14px;
+        transform: translate(-50%, -50%);
+        pointer-events: none;
+      }
+
+      #crosshair::before,
+      #crosshair::after {
+        content: "";
+        position: absolute;
+        background: rgba(16, 42, 53, 0.8);
+      }
+
+      #crosshair::before {
+        width: 2px;
+        height: 14px;
+        left: 6px;
+      }
+
+      #crosshair::after {
+        width: 14px;
+        height: 2px;
+        top: 6px;
+      }
+
+      #crosshair.interact {
+        width: 18px;
+        height: 18px;
+        border: 2px solid rgba(120, 220, 255, 0.95);
+        border-radius: 50%;
+        box-shadow: 0 0 10px rgba(120, 220, 255, 0.45);
+      }
+
+      #crosshair.interact::before,
+      #crosshair.interact::after {
+        opacity: 0;
+      }
+
+      #mode-ui {
+        position: fixed;
+        right: 14px;
+        top: 14px;
+        z-index: 30;
+        padding: 0.55rem 0.7rem;
+        border-radius: 10px;
+        background: rgba(10, 25, 34, 0.62);
+        border: 1px solid rgba(255, 255, 255, 0.35);
+        color: #eef7ff;
+        font-size: 0.78rem;
+        user-select: none;
+      }
+
+      #mode-ui .row {
+        display: flex;
+        align-items: center;
+        gap: 0.45rem;
+      }
+
+      #mode-ui .tag {
+        opacity: 0.9;
+        min-width: 2.9rem;
+        text-align: center;
+      }
+
+      #mode-ui .switch {
+        position: relative;
+        width: 48px;
+        height: 24px;
+        display: inline-block;
+      }
+
+      #mode-ui .switch input {
+        opacity: 0;
+        width: 0;
+        height: 0;
+      }
+
+      #mode-ui .slider {
+        position: absolute;
+        inset: 0;
+        background: rgba(255, 255, 255, 0.2);
+        border-radius: 999px;
+        cursor: pointer;
+        transition: 0.22s ease;
+      }
+
+      #mode-ui .slider::before {
+        content: "";
+        position: absolute;
+        left: 3px;
+        top: 3px;
+        width: 18px;
+        height: 18px;
+        border-radius: 50%;
+        background: #f7fbff;
+        transition: transform 0.22s ease;
+      }
+
+      #mode-ui input:checked + .slider {
+        background: rgba(146, 208, 255, 0.72);
+      }
+
+      #mode-ui input:checked + .slider::before {
+        transform: translateX(24px);
+      }
+
+      #mode-ui .mode-name {
+        margin-top: 0.35rem;
+        text-align: center;
+        letter-spacing: 0.03em;
+        font-weight: 600;
+      }
+
+      #arcade-overlay {
+        position: fixed;
+        inset: 0;
+        z-index: 40;
+        display: none;
+        place-items: center;
+        pointer-events: none;
+      }
+
+      #arcade-overlay.active {
+        display: grid;
+        pointer-events: auto;
+      }
+
+      #arcade-panel {
+        position: relative;
+        width: min(74vw, 860px);
+        aspect-ratio: 4 / 3;
+        border: 3px solid rgba(120, 220, 255, 0.9);
+        border-radius: 10px;
+        overflow: hidden;
+        background: rgba(2, 6, 12, 0.94);
+        box-shadow: 0 20px 60px rgba(0, 0, 0, 0.52);
+      }
+
+      #arcade-frame {
+        position: absolute;
+        inset: 0;
+        width: 100%;
+        height: 100%;
+        border: 0;
+        display: block;
+      }
+
+      #arcade-exit {
+        position: fixed;
+        right: 16px;
+        bottom: 16px;
+        z-index: 41;
+        display: none;
+        padding: 0.5rem 0.7rem;
+        border: 1px solid rgba(255, 255, 255, 0.55);
+        border-radius: 8px;
+        color: #eef7ff;
+        background: rgba(10, 25, 34, 0.8);
+        font-size: 0.82rem;
+        cursor: pointer;
+      }
+
+      #arcade-exit.active {
+        display: inline-block;
+      }
+
+      #app-footer {
+        position: fixed;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        z-index: 45;
+        padding: 0.35rem 0.7rem;
+        text-align: center;
+        font-size: 0.74rem;
+        letter-spacing: 0.02em;
+        color: rgba(236, 245, 255, 0.92);
+        background: rgba(8, 18, 26, 0.55);
+        border-top: 1px solid rgba(255, 255, 255, 0.26);
+        pointer-events: none;
+        user-select: none;
+      }
+    </style>
+    <script type="module" crossorigin src="/assets/index-Y9IiM3Mz.js"></script>
+  </head>
+  <body>
+    <div id="app"></div>
+    <div id="overlay">
+      <div class="panel">
+        <h1>Enter the Center for Digital Narrative</h1>
+        <p>Click to lock mouse and use first person controls</p>
+        <p><strong>W A S D</strong> move, <strong>Mouse</strong> look around</p>
+      </div>
+    </div>
+    <div id="crosshair"></div>
+    <div id="mode-ui">
+      <div class="row">
+        <span class="tag">House</span>
+        <label class="switch">
+          <input id="mode-toggle" type="checkbox" />
+          <span class="slider"></span>
+        </label>
+        <span class="tag">Portal</span>
+      </div>
+      <div id="mode-name" class="mode-name">House Mode</div>
+    </div>
+    <div id="arcade-overlay">
+      <div id="arcade-panel">
+        <iframe
+          id="arcade-frame"
+          title="Arcade Screen"
+          loading="eager"
+          referrerpolicy="no-referrer"
+        ></iframe>
+      </div>
+    </div>
+    <button id="arcade-exit" type="button">Exit Arcade (Esc)</button>
+    <footer id="app-footer">
+      Code generated by Codex with the model GPT5.3 Codex.
+    </footer>
+
+  </body>
+</html>
